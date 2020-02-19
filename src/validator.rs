@@ -41,6 +41,8 @@ pub struct Validator<Hash, H: Hasher<Hash>> {
     pub reward: HashMap<Index, Value>,
     // User support deposited at some reward index - Hash(reward_index, user_address)
     pub user_support: HashMap<Hash, Value>,
+    // User support where the user has money
+    pub user_support_indexes: HashMap<Address, Vec<Index>>,
 }
 
 impl<Hash, H> Validator<Hash, H>
@@ -60,7 +62,16 @@ where
             total_support: HashMap::new(),
             reward: HashMap::new(),
             user_support: HashMap::new(),
+            user_support_indexes: HashMap::new(),
         }
+    }
+
+    // Returns all support indexes for user
+    pub fn get_support_indexes(
+        &mut self,
+        user_address: Address
+    ) -> Option<Vec<Index>> {
+        self.user_support_indexes.get(user_address)
     }
 
     /// User can vote for that validator, providing her address, support amount and signature
@@ -108,14 +119,16 @@ where
         // Update total balance
         self.total_balance += amount;
         // Update total support at current index
-        let update = self.total_support.get(self.current_index) + amount;
+        let update = self.total_support.get(self.current_index)? + amount;
         self.total_support.insert(self.current_index, update);
         // Update user balance at current index
         let mut bits = self.current_index.to_bits();
         bits.extend(user_address.to_bits());
         let hash = self.hasher.hash_bits(bits);
-        let update = self.user_support.get(&hash) + amount;
+        let update = self.user_support.get(&hash)? + amount;
         self.user_support.insert(hash, update);
+        self.user_support_indexes.insert(user_address, self.current_index);
+        self.user_support_indexes.dedup();
         // Return current index and updated support amount for user
         Ok((self.current_index, update))
     }
@@ -133,7 +146,7 @@ where
         // Insert new index support - its value is current total balance
         self.total_support.insert(
             self.current_index + 1,
-            self.total_support.get(self.current_index),
+            self.total_support.get(self.current_index)?,
         );
         // Update index
         self.current_index += 1;
@@ -179,25 +192,29 @@ where
         let mut bits = from_index.to_bits();
         bits.extend(user_address.to_bits());
         let hash = self.hasher.hash_bits(bits);
-        let supported = self.user_support.get(hash);
+        let supported = self.user_support.get(hash)?;
         ensure!(amount <= supported, "Wrong amount");
         // Accumulate rewards until the current or max possible index
         let max_index = from_index + INDEX_MAX_DELTA;
         let end_index = cmp::max(max_index, self.current_index);
         let reward = 0;
         for i in from_index..end_index {
-            let user_share = amount / self.total_support.get(i);
-            reward += self.reward.get(i) * (1 - VALIDATOR_SHARE) * user_share;
+            let user_share = amount / self.total_support.get(i)?;
+            reward += self.reward.get(i)? * (1 - VALIDATOR_SHARE) * user_share;
         }
         // Update supporter balance at index: subtract provided amount
         self.user_support.insert(hash, supported - amount);
+        // If supported is eq to specified amount - remove provided index from possible withdraw indexes for user
+        if supported == amount {
+            self.user_support_indexes.remove(from_index);
+        }
         if end_index < self.current_index {
             // If there are rewards left after the last processed index -
             // place the provided amount to the upper bound index and withdraw only reward
             let mut bits = end_index.to_bits();
             bits.extend(user_address.to_bits());
             let hash = self.hasher.hash_bits(bits);
-            let new_balance = self.user_support.get(hash) + amount;
+            let new_balance = self.user_support.get(hash)? + amount;
             self.user_support.insert(hash, new_balance);
             // Send only the reward
             self.total_balance -= reward;

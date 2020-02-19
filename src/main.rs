@@ -64,6 +64,14 @@ async fn owner_withdraw_reward(
     // TODO
 }
 
+// Returns all support indexes for user
+async fn get_support_indexes(
+    item: web::Json<OwnerWithdrawRequest>,
+    req: HttpRequest,
+) -> Result<HttpResponse, Error> {
+    // TODO
+}
+
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
@@ -83,6 +91,11 @@ async fn main() -> std::io::Result<()> {
                 web::resource("/owner_withdraw_reward")
                     .data(web::JsonConfig::default().limit(1024))
                     .route(web::post().to(owner_withdraw_reward)),
+            )
+            .service(
+                web::resource("/get_support_indexes")
+                    .data(web::JsonConfig::default().limit(1024))
+                    .route(web::get().to(owner_withdraw_reward)),
             )
         // TODO: all handlers
     })
