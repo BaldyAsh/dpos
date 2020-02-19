@@ -67,10 +67,7 @@ where
     }
 
     // Returns all support indexes for user
-    pub fn get_support_indexes(
-        &mut self,
-        user_address: Address
-    ) -> Option<Vec<Index>> {
+    pub fn get_support_indexes(&mut self, user_address: Address) -> Option<Vec<Index>> {
         self.user_support_indexes.get(user_address)
     }
 
@@ -127,7 +124,8 @@ where
         let hash = self.hasher.hash_bits(bits);
         let update = self.user_support.get(&hash)? + amount;
         self.user_support.insert(hash, update);
-        self.user_support_indexes.insert(user_address, self.current_index);
+        self.user_support_indexes
+            .insert(user_address, self.current_index);
         self.user_support_indexes.dedup();
         // Return current index and updated support amount for user
         Ok((self.current_index, update))
