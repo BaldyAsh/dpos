@@ -206,6 +206,7 @@ where
         if supported == amount {
             self.user_support_indexes.remove(from_index);
         }
+        // Make a decision - how much to withdraw depending on processed indexes length
         if end_index < self.current_index {
             // If there are rewards left after the last processed index -
             // place the provided amount to the upper bound index and withdraw only reward
