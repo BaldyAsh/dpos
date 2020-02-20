@@ -1,9 +1,9 @@
 use std::cmp;
 use std::collections::HashMap;
 
-use super::Index;
-use super::Amount;
 use super::Address;
+use super::Amount;
+use super::Index;
 use super::SHARE;
 
 type Hash = u128;
@@ -47,11 +47,15 @@ trait Democracy {
 
 trait RewardSharing {
     fn append_reward(&mut self, reward: Amount);
-    fn try_withdraw_with_rewards(&mut self, user: &mut User, from_index: Index, amount: Amount) -> Option<(Index, Amount)>;
+    fn try_withdraw_with_rewards(
+        &mut self,
+        user: &mut User,
+        from_index: Index,
+        amount: Amount,
+    ) -> Option<(Index, Amount)>;
 }
 
 impl Democracy for Validator {
-
     fn vote(&mut self, user: &mut User, amount: Amount) -> (Index, Amount) {
         // Update total balance
         self.total_balance += amount;
@@ -59,7 +63,7 @@ impl Democracy for Validator {
         // Update total support at current index
         let update = match self.total_support.get(&self.current_index) {
             Some(supported) => supported + amount,
-            None => amount
+            None => amount,
         };
         self.total_support.insert(self.current_index, update);
 
@@ -69,7 +73,7 @@ impl Democracy for Validator {
         // Update user balance at current index
         let update = match self.user_support.get(&hash) {
             Some(supported) => supported + amount,
-            None => amount
+            None => amount,
         };
 
         self.user_support.insert(hash, update);
@@ -83,11 +87,13 @@ impl Democracy for Validator {
 
 impl RewardSharing for Validator {
     fn append_reward(&mut self, reward: Amount) {
-
         // Insert new index support - its Amount is current total balance
         self.total_support.insert(
             self.current_index + 1,
-            self.total_support.get(&self.current_index).cloned().unwrap_or(0),
+            self.total_support
+                .get(&self.current_index)
+                .cloned()
+                .unwrap_or(0),
         );
 
         // Update index
@@ -101,7 +107,7 @@ impl RewardSharing for Validator {
         &mut self,
         user: &mut User,
         from_index: Index,
-        amount: Amount
+        amount: Amount,
     ) -> Option<(Index, Amount)> {
         // Get hash from address and current index
         let hash = Hasher::hash(from_index, user.address);
@@ -130,7 +136,7 @@ impl RewardSharing for Validator {
 
             let new_balance = match self.user_support.get(&hash) {
                 Some(balance) => balance + amount,
-                None => amount
+                None => amount,
             };
 
             self.user_support.insert(hash, new_balance);
@@ -145,7 +151,7 @@ impl RewardSharing for Validator {
             // Withdraw all
             self.total_balance -= amount + reward;
             user.balance += amount + reward;
-            
+
             // Return none - everything has been withdrawn
             None
         }

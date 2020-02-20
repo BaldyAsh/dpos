@@ -1,8 +1,8 @@
-use std::collections::HashMap;
-use super::Amount;
 use super::Address;
+use super::Amount;
 use super::Index;
 use super::SHARE;
+use std::collections::HashMap;
 
 pub struct Vote {
     // The number of rewards that are already on the account at the time of voting
@@ -10,7 +10,7 @@ pub struct Vote {
     // Vote amount
     pub amount: Amount,
     // Indicates that the reward has been withdrawn for a given vote and it remains to close this vote
-    pub reward_taken: bool
+    pub reward_taken: bool,
 }
 
 pub struct User {
@@ -25,13 +25,13 @@ pub struct Validator {
     pub votes: HashMap<Address, Vote>,
     // Delegated balance on that account
     pub total_delegated: Amount,
-    // Total balance on that account (delegated + rewarded) 
+    // Total balance on that account (delegated + rewarded)
     pub total_balance: Amount,
     // Number of rewards for that validator
     pub rewards_count: Index,
     // The average reward value available for withdrawal by delegates.
     // reward_for_user = (delegated_by_user / total_delegated) * (rewards_count - user_vote_time_rewards_count) * reward_to_share
-    pub reward_to_share: Amount
+    pub reward_to_share: Amount,
 }
 
 trait Democracy {
@@ -45,7 +45,6 @@ trait RewardSharing {
 }
 
 impl Democracy for Validator {
-
     fn vote(&mut self, user: &mut User, amount: Amount) {
         // First check that user has no votes (her previous vote and reward for it has been withdrawn)
         if let Some(prev_vote) = self.votes.get(&user.address) {
@@ -55,12 +54,15 @@ impl Democracy for Validator {
         }
 
         // Insert new vote
-        self.votes.insert(user.address, Vote {
-            first_reward_id: self.rewards_count,
-            amount,
-            reward_taken: false
-        });
-        
+        self.votes.insert(
+            user.address,
+            Vote {
+                first_reward_id: self.rewards_count,
+                amount,
+                reward_taken: false,
+            },
+        );
+
         // Update balances: user, delegated, total
         user.balance -= amount;
         self.total_delegated += amount;
@@ -80,7 +82,7 @@ impl Democracy for Validator {
         if vote.amount == 0 || !vote.reward_taken {
             panic!("Make sure that the vote exists and the reward has been withdrawn");
         }
-        
+
         // Update balances: user, delegated and total
         user.balance += vote.amount;
         self.total_delegated -= vote.amount;
@@ -92,11 +94,10 @@ impl Democracy for Validator {
 }
 
 impl RewardSharing for Validator {
-    
     fn append_reward(&mut self, reward: Amount) {
         // Update total balance
         self.total_balance += reward;
-        
+
         // Update passed rewards count
         self.rewards_count += 1;
 
@@ -106,7 +107,7 @@ impl RewardSharing for Validator {
     }
 
     fn send_rewards(&mut self, user: &mut User) {
-        // Check that vote exists 
+        // Check that vote exists
         let vote = self.votes.get(&user.address);
         if vote.is_none() {
             panic!("No vote to get rewards")
@@ -131,10 +132,13 @@ impl RewardSharing for Validator {
         self.total_balance -= reward;
 
         // Update vote - reward has been taken
-        self.votes.insert(user.address, Vote {
-            first_reward_id,
-            amount,
-            reward_taken: true
-        });
+        self.votes.insert(
+            user.address,
+            Vote {
+                first_reward_id,
+                amount,
+                reward_taken: true,
+            },
+        );
     }
 }
